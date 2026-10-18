@@ -34,16 +34,26 @@ jobs:
       - run: npm test
       - run: npm run bundle
 
+      # Both steps tolerate a previous partial run, so a failed release can simply be re-run.
       - name: Create GitHub Release with the extension
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp build/appstore-connect.mcpb "build/appstore-connect-$GITHUB_REF_NAME.mcpb"
-          gh release create "$GITHUB_REF_NAME" \
-            build/appstore-connect.mcpb "build/appstore-connect-$GITHUB_REF_NAME.mcpb" \
-            --title "$GITHUB_REF_NAME" --generate-notes
+          files=(build/appstore-connect.mcpb "build/appstore-connect-$GITHUB_REF_NAME.mcpb")
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
 
       - name: Publish to npm
-        run: npm publish
+        run: |
+          spec="$(node -p 'const p=require("./package.json"); p.name+"@"+p.version')"
+          if npm view "$spec" version >/dev/null 2>&1; then
+            echo "$spec is already on npm; skipping."
+          else
+            npm publish
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

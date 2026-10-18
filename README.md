@@ -177,6 +177,8 @@ npm run bundle     # build the Claude Desktop extension into build/appstore-conn
 2. Tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
 3. The release workflow runs the tests, attaches `appstore-connect.mcpb` to a new GitHub Release, and publishes `@ihux/appstore-connect-mcp` to npm.
 
+If a step fails, fix the cause and re-run the workflow; it skips what already succeeded. To publish an existing tag to npm on its own, run **Actions → Publish to npm** with the tag. The `NPM_TOKEN` secret must be a granular token with publish rights to `@ihux` and **Bypass 2FA** enabled.
+
 ## Not covered
 
 - The **App Store Server API** (transactions, refunds, server notifications). It is a separate API with its own keys.
