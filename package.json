@@ -1,0 +1,67 @@
+{
+  "name": "@ihux/appstore-connect-mcp",
+  "version": "0.2.0",
+  "description": "MCP server for the entire App Store Connect API (1,300+ operations) in Claude Code, Claude Desktop and Cursor, with a local settings page for your API key and access mode. By iHux.",
+  "type": "module",
+  "bin": {
+    "appstore-connect-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "catalog",
+    "assets/settings.html",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "generate": "node scripts/generate.ts",
+    "update-spec": "node scripts/update-spec.ts && npm run generate",
+    "bundle": "node scripts/bundle.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "app-store-connect",
+    "apple",
+    "ios",
+    "testflight",
+    "xcode-cloud",
+    "claude",
+    "cursor"
+  ],
+  "author": "iHux LLC (https://github.com/iHux-LLC)",
+  "license": "MIT",
+  "homepage": "https://github.com/iHux-LLC/appstore-connect-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iHux-LLC/appstore-connect-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iHux-LLC/appstore-connect-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "ajv": "^8.20.0",
+    "jose": "^6.2.12",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
