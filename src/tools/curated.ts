@@ -226,7 +226,7 @@ function registerReadTools(server: McpServer, ctx: ToolContext) {
     "asc_list_beta_groups",
     {
       title: "List TestFlight beta groups",
-      description: "List an app's TestFlight beta groups (internal and external) with their ids and public link settings.",
+      description: "List an app's TestFlight beta groups (internal and external) with their ids, whether they receive every build automatically (hasAccessToAllBuilds), and public link settings.",
       inputSchema: { appId: z.string() },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -234,7 +234,7 @@ function registerReadTools(server: McpServer, ctx: ToolContext) {
       const res = await runJson(ctx, "betaGroups_getCollection", {
         query: {
           "filter[app]": appId,
-          "fields[betaGroups]": ["name", "isInternalGroup", "publicLinkEnabled", "publicLink", "publicLinkLimit", "createdDate"],
+          "fields[betaGroups]": ["name", "isInternalGroup", "hasAccessToAllBuilds", "publicLinkEnabled", "publicLink", "publicLinkLimit", "createdDate"],
           limit: 200,
         },
       });
