@@ -17,7 +17,7 @@ describe("tool registration", () => {
     expect(rwNames).toContain("asc_submit_for_review");
     // Cursor warns above ~40 tools across all servers; keep this server small.
     // Raise this deliberately: the planned permission groups are the way to trim it per user.
-    expect(rwNames.length).toBeLessThanOrEqual(32);
+    expect(rwNames.length).toBeLessThanOrEqual(34);
   });
 });
 

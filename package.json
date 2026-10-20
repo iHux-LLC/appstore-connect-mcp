@@ -1,6 +1,6 @@
 {
   "name": "@ihux/appstore-connect-mcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "MCP server for the entire App Store Connect API (1,300+ operations) in Claude Code, Claude Desktop and Cursor, with a local settings page for your API key and access mode. By iHux.",
   "type": "module",
   "bin": {

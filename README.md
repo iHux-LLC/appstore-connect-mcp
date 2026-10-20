@@ -52,8 +52,8 @@ Exposing 1,303 tools would overload any MCP client, so the server uses a small s
 
 On top of those, shortcuts for common jobs return compact, flattened results:
 
-- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_list_app_info`, `asc_list_media`, `asc_download_sales_report`, `asc_download_finance_report`
-- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_distribute_build`, `asc_update_version_localization`, `asc_update_app_info`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_upload_screenshots`, `asc_upload_previews`, `asc_submit_for_review`, `asc_release_version`, `asc_phased_release`
+- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_list_app_info`, `asc_list_media`, `asc_download_sales_report`, `asc_download_finance_report`, `asc_list_analytics_reports`, `asc_download_analytics_report`
+- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_distribute_build`, `asc_update_version_localization`, `asc_update_app_info`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_upload_screenshots`, `asc_upload_previews`, `asc_submit_for_review`, `asc_release_version`, `asc_phased_release`, `asc_analytics_setup`
 
 ### Releases and TestFlight
 
@@ -61,6 +61,16 @@ On top of those, shortcuts for common jobs return compact, flattened results:
 - `asc_phased_release` turns on a 7-day phased release, and can pause, resume, complete or show it. Removing one needs `full` mode. `asc_app_overview` shows the current day.
 - `asc_distribute_build` gives a build to TestFlight groups. It can also set the "What to Test" notes per language and submit the build for beta review, which external groups need. It never submits a build twice. Groups that already receive every build automatically are skipped with a note, and each group's result is reported separately.
 - `asc_update_app_info` changes the app's name, subtitle or privacy URLs for one language. It only edits the app info being prepared for the next version, never the live one.
+
+### Analytics reports
+
+Apple's App Store analytics (impressions, page views, downloads, sessions, crashes, and more) come as reports that Apple prepares once you ask for them:
+
+1. `asc_analytics_setup` asks Apple to start producing reports for an app. You only do this once per app, and the first reports appear **after a day or two**.
+2. `asc_list_analytics_reports` lists the reports by category (App Store engagement, commerce, app usage, framework usage, performance), and the dates each one is available for.
+3. `asc_download_analytics_report` downloads a report by name for a date range (daily, weekly or monthly). It checks each part against Apple's checksum, unzips and merges the parts, and returns the rows or saves them as a TSV file.
+
+Report files are fetched only from the links Apple's API returns in that same call, over HTTPS, without your API key.
 
 ### Ratings and reviews
 
@@ -82,6 +92,16 @@ Before uploading anything, it checks:
 - **The device size.** Screenshot sizes are matched against Apple's specifications. A size that belongs to a different device (an iPad image in an iPhone set, say) is refused. If you omit the device size, it's detected from the images.
 - **Apple's limits:** 10 screenshots and 3 previews per set.
 - **That the version can still be edited.**
+
+**Localized screenshots in one call:** point `folder` at a folder with one subfolder per language. Each language gets its own files, and `locales` isn't needed:
+
+```
+shots/
+  en-US/  1.png 2.png 3.png
+  de-DE/  1.png 2.png 3.png
+```
+
+Before anything uploads, the tool checks every language: that it exists on the version, that its images fit the device size, and that it stays within Apple's per-set limit. If any language fails a check, nothing is uploaded.
 
 By default new files are added after the existing ones. `replace: true` swaps them out, but only after every new file has processed successfully, so a failed upload never leaves your product page empty. Replacing needs the `full` access mode, because it removes files.
 
@@ -169,6 +189,8 @@ Environment variables override the settings file field by field. They are useful
 - "Give build 412 to the Beta Testers group with 'Try the new export flow' as What to Test, and submit it for beta review."
 - "Version 3.0 is approved: turn on phased release, then release it."
 - "Change the en-US subtitle to 'Edit photos in seconds'."
+- "Upload the localized screenshots in ~/Desktop/shots (one folder per language) to version 2.4."
+- "Turn on analytics for MyApp." Then, a couple of days later: "How many App Store impressions and downloads did MyApp get last week?"
 - "Download last month's sales summary for vendor 8xxxxxxx and total the units by country."
 - "Which Xcode Cloud workflows failed this week?" (uses the generic tools)
 
@@ -229,7 +251,6 @@ If a step fails, fix the cause and re-run the workflow; it skips what already su
 ## Not covered
 
 - The **App Store Server API** (transactions, refunds, server notifications). It is a separate API with its own keys.
-- Downloading **Analytics report segments**. The API returns signed URLs on Apple's CDN, outside the API host the server is allowed to call. Listing the reports and their segments works.
 
 ---
 

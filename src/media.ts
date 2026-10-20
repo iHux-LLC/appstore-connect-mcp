@@ -133,6 +133,45 @@ export function collectFiles(kind: MediaKind, files: string[] = [], folder?: str
   return out;
 }
 
+const LOCALE_FOLDER = /^[a-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$/i;
+
+export interface MediaPlan {
+  /** Same files for every chosen language. */
+  shared?: string[];
+  /** Folder-per-language mode: each language's own files, keyed by the subfolder name. */
+  perLocale?: Map<string, string[]>;
+}
+
+/**
+ * Reads the files to upload. A folder whose entries are language subfolders (en-US/, de-DE/, ...)
+ * gives each language its own files; otherwise the files go to every chosen language.
+ */
+export function collectMedia(kind: MediaKind, files: string[] = [], folder?: string): MediaPlan {
+  if (folder && !files.length) {
+    const dir = safeUploadFolder(folder);
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`Folder not found: ${dir}`);
+    const entries = readdirSync(dir).filter((n) => !n.startsWith("."));
+    const subfolders = entries.filter((n) => statSync(join(dir, n)).isDirectory());
+    const media = entries.filter((n) => EXTENSIONS[kind].includes(extname(n).toLowerCase()));
+    if (subfolders.length && media.length) {
+      throw new Error(`${dir} mixes files and subfolders. Use either a folder of files, or one subfolder per language (en-US/, de-DE/, ...).`);
+    }
+    if (subfolders.length) {
+      const bad = subfolders.filter((n) => !LOCALE_FOLDER.test(n));
+      if (bad.length) throw new Error(`Subfolders must be named after languages, e.g. en-US or de-DE; these aren't: ${bad.join(", ")}.`);
+      const perLocale = new Map<string, string[]>();
+      for (const name of subfolders.sort()) perLocale.set(name, collectFiles(kind, [], join(dir, name)));
+      return { perLocale };
+    }
+  }
+  return { shared: collectFiles(kind, files, folder) };
+}
+
+/** How many files a localization's set of this type already holds (0 when there's no set yet). */
+export async function countInSet(ctx: ToolContext, owner: Owner, localizationId: string, kind: MediaKind, setType: string): Promise<number> {
+  return (await listSets(ctx, owner, localizationId, kind)).find((s) => s.type === setType)?.items.length ?? 0;
+}
+
 /**
  * Checks every screenshot against the display type. A size that belongs to a different device
  * is an error (the most common mistake); a size we don't know only warns, since Apple decides.
