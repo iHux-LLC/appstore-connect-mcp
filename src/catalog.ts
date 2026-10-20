@@ -27,7 +27,6 @@ export interface Operation {
 
 export interface CatalogData {
   specVersion: string;
-  generatedAt: string;
   baseUrl: string;
   operations: Operation[];
   bodySchemas: Record<string, any>;
