@@ -139,7 +139,6 @@ operations.sort((a, b) => a.id.localeCompare(b.id));
 
 const catalog = {
   specVersion: spec.info.version,
-  generatedAt: new Date().toISOString(),
   baseUrl: spec.servers?.[0]?.url?.replace(/\/$/, "") ?? "https://api.appstoreconnect.apple.com",
   operations,
   bodySchemas,
