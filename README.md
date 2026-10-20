@@ -51,8 +51,21 @@ Exposing 1,303 tools would overload any MCP client, so the server uses a small s
 
 On top of those, shortcuts for common jobs return compact, flattened results:
 
-- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_list_media`, `asc_download_sales_report`, `asc_download_finance_report`
-- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_update_version_localization`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_upload_screenshots`, `asc_upload_previews`, `asc_submit_for_review`
+- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_list_app_info`, `asc_list_media`, `asc_download_sales_report`, `asc_download_finance_report`
+- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_distribute_build`, `asc_update_version_localization`, `asc_update_app_info`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_upload_screenshots`, `asc_upload_previews`, `asc_submit_for_review`, `asc_release_version`, `asc_phased_release`
+
+### Releases and TestFlight
+
+- `asc_release_version` releases an approved version that's waiting for a manual release. It refuses any other state.
+- `asc_phased_release` turns on a 7-day phased release, and can pause, resume, complete or show it. Removing one needs `full` mode. `asc_app_overview` shows the current day.
+- `asc_distribute_build` gives a build to TestFlight groups. It can also set the "What to Test" notes per language and submit the build for beta review, which external groups need. It never submits a build twice.
+- `asc_update_app_info` changes the app's name, subtitle or privacy URLs for one language. It only edits the app info being prepared for the next version, never the live one.
+
+### Ratings and reviews
+
+`asc_list_customer_reviews` returns each review's star rating, title, text, country and your reply. It filters by rating, by country, or to reviews you haven't answered. `asc_reply_to_customer_review` posts a reply.
+
+Apple's App Store Connect API doesn't provide an app's overall average rating or the number of ratings, so this server can't show them either.
 
 ### Screenshots and app previews
 
@@ -150,6 +163,9 @@ Environment variables override the settings file field by field. They are useful
 - "Update the What's New text for en-US and de-DE on version 2.4."
 - "Upload the screenshots in ~/Desktop/shots/iphone to version 2.4 for every language, replacing the current ones."
 - "Add ~/Desktop/promo.mov as the iPhone app preview for en-US, with the poster frame at 3 seconds."
+- "Give build 412 to the Beta Testers group with 'Try the new export flow' as What to Test, and submit it for beta review."
+- "Version 3.0 is approved: turn on phased release, then release it."
+- "Change the en-US subtitle to 'Edit photos in seconds'."
 - "Download last month's sales summary for vendor 8xxxxxxx and total the units by country."
 - "Which Xcode Cloud workflows failed this week?" (uses the generic tools)
 

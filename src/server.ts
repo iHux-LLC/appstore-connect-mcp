@@ -8,6 +8,7 @@ import { settingsFile } from "./settings/store.js";
 import { registerCuratedTools } from "./tools/curated.js";
 import { registerGenericTools } from "./tools/generic.js";
 import { registerMediaTools } from "./tools/media.js";
+import { registerReleaseReadTools, registerReleaseWriteTools } from "./tools/release.js";
 import { registerSettingsTool } from "./tools/settings.js";
 import { VERSION } from "./version.js";
 
@@ -33,7 +34,7 @@ export function createServer(config: Config, opts: ServerOptions = {}) {
     {
       instructions:
         `App Store Connect API (spec ${catalog.data.specVersion}, ${catalog.operations.length} operations). ` +
-        "Use the curated asc_* tools for common jobs (apps, builds, reviews, TestFlight, metadata, screenshots and preview videos, reports, review submission). " +
+        "Use the curated asc_* tools for common jobs (apps, builds, reviews, TestFlight distribution, metadata, app name and subtitle, screenshots and preview videos, reports, review submission, releases and phased releases). " +
         "For anything else: asc_search_operations, then asc_describe_operation, then asc_call_operation. " +
         "Most tools need an app id; get it from asc_list_apps. " +
         "The user controls the access mode (read-only, write, full) and it can change during a session; asc_check_connection shows the current one. " +
@@ -47,8 +48,10 @@ export function createServer(config: Config, opts: ServerOptions = {}) {
   const writeTools: RegisteredTool[] = [
     ...registerCuratedTools(server, ctx),
     ...registerMediaTools(server, ctx),
+    ...registerReleaseWriteTools(server, ctx),
     registerGenericTools(server, ctx),
   ];
+  registerReleaseReadTools(server, ctx);
   registerSettingsTool(server, env, opts.openBrowser);
 
   const applyMode = () => {

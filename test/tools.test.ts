@@ -16,7 +16,8 @@ describe("tool registration", () => {
     const rwNames = (await rw.listTools()).tools.map((t) => t.name);
     expect(rwNames).toContain("asc_submit_for_review");
     // Cursor warns above ~40 tools across all servers; keep this server small.
-    expect(rwNames.length).toBeLessThanOrEqual(25);
+    // Raise this deliberately: the planned permission groups are the way to trim it per user.
+    expect(rwNames.length).toBeLessThanOrEqual(32);
   });
 });
 
