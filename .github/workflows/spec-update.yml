@@ -1,0 +1,94 @@
+# Checks Apple's App Store Connect OpenAPI spec weekly. When it changed, regenerates the
+# catalog, runs the tests, and opens (or updates) a pull request summarising what changed.
+name: Apple spec update
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: spec-update
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Download Apple's latest spec and regenerate the catalog
+        run: |
+          cp catalog/catalog.json "$RUNNER_TEMP/old-catalog.json"
+          npm run update-spec
+
+      - name: Stop if nothing changed
+        id: changed
+        run: |
+          if git diff --quiet -- spec catalog; then
+            echo "Apple's spec is unchanged."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$(node -p 'require("./catalog/catalog.json").specVersion')" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pull requests opened with the workflow token don't trigger CI, so the checks run here
+      # and their results go into the pull request description.
+      - name: Typecheck and test
+        if: steps.changed.outputs.changed == 'true'
+        id: checks
+        run: |
+          set +e
+          npm run typecheck > "$RUNNER_TEMP/checks.log" 2>&1; typecheck=$?
+          npm test >> "$RUNNER_TEMP/checks.log" 2>&1; tests=$?
+          if [ $typecheck -eq 0 ] && [ $tests -eq 0 ]; then echo "result=✅ Typecheck and tests pass" >> "$GITHUB_OUTPUT";
+          else echo "result=❌ Typecheck or tests fail; see the workflow run before merging" >> "$GITHUB_OUTPUT"; fi
+          tail -n 40 "$RUNNER_TEMP/checks.log"
+
+      - name: Open or update the pull request
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.changed.outputs.version }}
+          CHECKS: ${{ steps.checks.outputs.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # The version comes from Apple's file; only accept a plain version string.
+          if ! [[ "$VERSION" =~ ^[0-9A-Za-z._-]{1,32}$ ]]; then
+            echo "Unexpected spec version '$VERSION'; refusing to use it in a branch name." >&2
+            exit 1
+          fi
+          branch="chore/apple-spec-$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add spec catalog
+          git commit -m "chore: update Apple's App Store Connect API spec to $VERSION"
+          git push --force origin "$branch"
+
+          {
+            node scripts/diff-catalog.ts "$RUNNER_TEMP/old-catalog.json" catalog/catalog.json
+            echo
+            echo "### Checks"
+            echo "$CHECKS ([workflow run]($RUN_URL))."
+            echo
+            echo "New operations work through \`asc_search_operations\` / \`asc_call_operation\` as soon as this is released. Curated tools may need a look if an operation they use changed."
+            echo
+            echo "_Opened automatically by the weekly Apple spec check._"
+          } > "$RUNNER_TEMP/body.md"
+
+          if gh pr view "$branch" --json number >/dev/null 2>&1; then
+            gh pr edit "$branch" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$branch" --title "chore: Apple App Store Connect API spec $VERSION" --body-file "$RUNNER_TEMP/body.md"
+          fi

@@ -214,6 +214,8 @@ npm run build
 
 New endpoints become available through `asc_search_operations` and `asc_call_operation` without any code changes.
 
+A weekly workflow (`.github/workflows/spec-update.yml`) does this automatically. When Apple's spec has changed, it regenerates the catalog, runs the tests, and opens a pull request listing the added, removed and changed operations. You can also run it by hand from the Actions tab.
+
 ### Commands
 
 ```bash
@@ -247,6 +249,10 @@ npm run bundle     # build the Claude Desktop extension into build/appstore-conn
 3. The release workflow runs the tests, attaches `appstore-connect.mcpb` to a new GitHub Release, and publishes `@ihux/appstore-connect-mcp` to npm.
 
 If a step fails, fix the cause and re-run the workflow; it skips what already succeeded. To publish an existing tag to npm on its own, run **Actions → Publish to npm** with the tag. The `NPM_TOKEN` secret must be a granular token with publish rights to `@ihux` and **Bypass 2FA** enabled.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability privately, and a summary of how keys, files and permissions are protected.
 
 ## Not covered
 
