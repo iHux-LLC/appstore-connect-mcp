@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { createReadStream, statSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Catalog, Operation } from "./catalog.js";
 import type { AscClient } from "./client.js";
@@ -14,6 +15,26 @@ export interface UploadInput {
   fileName?: string;
   attributes?: Record<string, unknown>;
   waitForProcessing?: boolean;
+  /** How long to wait for Apple to finish processing (default 30s). Videos can take minutes. */
+  waitSeconds?: number;
+}
+
+export interface DeliveryState {
+  state?: string;
+  errors?: { code?: string; description?: string }[];
+  warnings?: { code?: string; description?: string }[];
+}
+
+export interface UploadResult {
+  id: string;
+  type: string;
+  fileName: string;
+  bytes: number;
+  chunks: number;
+  md5: string;
+  committed?: boolean;
+  deliveryState?: DeliveryState;
+  note?: string;
 }
 
 /** The create operations whose resources are uploaded files (screenshots, previews, IAP images, ...). */
@@ -26,13 +47,45 @@ export function uploadableOperations(catalog: Catalog): Operation[] {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const CHUNK_CONCURRENCY = 4;
+
+/** Runs fn over items with at most `limit` in flight, keeping results in order. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+function md5OfFile(path: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("md5");
+    createReadStream(path)
+      .on("data", (chunk) => hash.update(chunk))
+      .on("error", reject)
+      .on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+/** Describes Apple's processing errors in one line, e.g. for a rejected screenshot size. */
+export function describeDelivery(state: DeliveryState | undefined): string | undefined {
+  const problems = [...(state?.errors ?? []), ...(state?.warnings ?? [])];
+  if (!problems.length) return undefined;
+  return problems.map((p) => [p.code, p.description].filter(Boolean).join(": ")).join("; ");
+}
 
 export async function uploadAsset(
   catalog: Catalog,
   client: AscClient,
   input: UploadInput,
   fetchImpl: typeof fetch = fetch,
-): Promise<Record<string, unknown>> {
+): Promise<UploadResult> {
   const createOp = catalog.require(input.createOperationId);
   if (!uploadableOperations(catalog).includes(createOp)) {
     const names = uploadableOperations(catalog).map((o) => o.id);
@@ -48,9 +101,9 @@ export async function uploadAsset(
   }
 
   const path = resolveOutputPath(input.filePath);
-  const bytes = readFileSync(path);
+  const size = statSync(path).size;
   const fileName = input.fileName ?? basename(path);
-  const md5 = createHash("md5").update(bytes).digest("hex");
+  const md5 = await md5OfFile(path);
 
   const relationships: Record<string, unknown> = {};
   if (relName) {
@@ -64,7 +117,7 @@ export async function uploadAsset(
   const reserveBody = {
     data: {
       type: resourceType,
-      attributes: { ...input.attributes, fileName, fileSize: statSync(path).size },
+      attributes: { ...input.attributes, fileName, fileSize: size },
       ...(relName ? { relationships } : {}),
     },
   };
@@ -75,19 +128,26 @@ export async function uploadAsset(
   if (!operations.length) throw new Error(`Apple returned no uploadOperations for ${resourceType} ${assetId}.`);
 
   // Step 2: PUT each chunk to Apple's presigned URLs (no App Store Connect token is sent there).
-  for (const part of operations) {
-    const headers: Record<string, string> = {};
-    for (const h of part.requestHeaders ?? []) headers[h.name] = h.value;
-    const chunk = bytes.subarray(part.offset, part.offset + part.length);
-    const res = await fetchImpl(part.url, { method: part.method ?? "PUT", headers, body: chunk });
-    if (!res.ok) {
-      throw new Error(`Uploading bytes ${part.offset}-${part.offset + part.length} of ${fileName} failed: HTTP ${res.status} ${await res.text()}`);
-    }
+  // Chunks are read from disk one at a time, so large videos never sit in memory whole.
+  const handle = await open(path, "r");
+  try {
+    await mapLimit(operations, CHUNK_CONCURRENCY, async (part) => {
+      const chunk = Buffer.alloc(part.length);
+      await handle.read(chunk, 0, part.length, part.offset);
+      const headers: Record<string, string> = {};
+      for (const h of part.requestHeaders ?? []) headers[h.name] = h.value;
+      const res = await fetchImpl(part.url, { method: part.method ?? "PUT", headers, body: chunk });
+      if (!res.ok) {
+        throw new Error(`Uploading bytes ${part.offset}-${part.offset + part.length} of ${fileName} failed: HTTP ${res.status} ${await res.text()}`);
+      }
+    });
+  } finally {
+    await handle.close();
   }
 
   // Step 3: commit, telling Apple the upload is done and what the checksum is.
   const updateOp = catalog.operations.find((o) => o.method === "PATCH" && o.path === `${createOp.path}/{id}`);
-  const result: Record<string, unknown> = { id: assetId, type: resourceType, fileName, bytes: bytes.length, chunks: operations.length, md5 };
+  const result: UploadResult = { id: assetId, type: resourceType, fileName, bytes: size, chunks: operations.length, md5 };
   if (!updateOp?.body) {
     result.note = "No commit operation exists for this resource type; Apple processes it once all chunks arrive.";
     return result;
@@ -104,16 +164,17 @@ export async function uploadAsset(
   );
   result.committed = true;
 
-  // Optionally poll until Apple has processed the asset.
+  // Step 4: optionally poll until Apple has processed the asset.
   const getOp = catalog.operations.find((o) => o.method === "GET" && o.path === `${createOp.path}/{id}`);
   if (input.waitForProcessing !== false && getOp) {
-    for (let i = 0; i < 15; i++) {
+    const deadline = Date.now() + (input.waitSeconds ?? 30) * 1000;
+    for (let attempt = 0; ; attempt++) {
       const res = await client.request({ method: "GET", path: `${createOp.path}/${encodeURIComponent(assetId)}` });
       const attrs = res.kind === "json" ? res.data.data?.attributes ?? {} : {};
-      const state = attrs.assetDeliveryState ?? attrs.deliveryState;
+      const state: DeliveryState | undefined = attrs.assetDeliveryState ?? attrs.deliveryState;
       if (state) result.deliveryState = state;
-      if (!state || ["COMPLETE", "FAILED"].includes(state.state)) break;
-      await sleep(2000);
+      if (!state?.state || ["COMPLETE", "FAILED"].includes(state.state) || Date.now() >= deadline) break;
+      await sleep(Math.min(2000 + attempt * 1000, 5000, Math.max(0, deadline - Date.now())));
     }
   }
   return result;

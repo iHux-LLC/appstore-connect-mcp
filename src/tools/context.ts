@@ -16,10 +16,10 @@ export function text(value: string | object): CallToolResult {
 }
 
 /** Wraps a handler so every thrown error becomes a readable tool error instead of a protocol failure. */
-export function safe<A>(handler: (args: A) => Promise<CallToolResult>): (args: A) => Promise<CallToolResult> {
-  return async (args: A) => {
+export function safe<A, X = unknown>(handler: (args: A, extra: X) => Promise<CallToolResult>): (args: A, extra: X) => Promise<CallToolResult> {
+  return async (args: A, extra: X) => {
     try {
-      return await handler(args);
+      return await handler(args, extra);
     } catch (err) {
       return { isError: true, content: [{ type: "text", text: (err as Error).message ?? String(err) }] };
     }

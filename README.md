@@ -51,8 +51,27 @@ Exposing 1,303 tools would overload any MCP client, so the server uses a small s
 
 On top of those, shortcuts for common jobs return compact, flattened results:
 
-- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_download_sales_report`, `asc_download_finance_report`
-- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_update_version_localization`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_submit_for_review`
+- **Read:** `asc_check_connection`, `asc_list_apps`, `asc_app_overview`, `asc_list_builds`, `asc_list_customer_reviews`, `asc_list_beta_groups`, `asc_list_version_localizations`, `asc_list_media`, `asc_download_sales_report`, `asc_download_finance_report`
+- **Write** (only in `write` or `full` mode): `asc_reply_to_customer_review`, `asc_invite_beta_tester`, `asc_update_version_localization`, `asc_create_app_store_version`, `asc_attach_build_to_version`, `asc_upload_screenshots`, `asc_upload_previews`, `asc_submit_for_review`
+
+### Screenshots and app previews
+
+`asc_upload_screenshots` and `asc_upload_previews` handle the whole job in one call. You give an app, a version, one or more languages (or `*` for all), and the files or a folder; files in a folder are taken in name order. Each call then:
+
+- finds or creates the screenshot or preview set for the device size
+- uploads the files, reading them from disk in chunks, 4 at a time
+- waits for Apple's processing, including video processing for previews
+- keeps the files in the order you gave
+
+Before uploading anything, it checks:
+
+- **The device size.** Screenshot sizes are matched against Apple's specifications. A size that belongs to a different device (an iPad image in an iPhone set, say) is refused. If you omit the device size, it's detected from the images.
+- **Apple's limits:** 10 screenshots and 3 previews per set.
+- **That the version can still be edited.**
+
+By default new files are added after the existing ones. `replace: true` swaps them out, but only after every new file has processed successfully, so a failed upload never leaves your product page empty. Replacing needs the `full` access mode, because it removes files.
+
+`asc_list_media` shows what's on a version, per language and device size, including Apple's processing state and any errors. Custom product pages and product page optimization treatments work too: pass `target` and `localizationIds`.
 
 Sales and finance reports arrive gzipped. The server decompresses them and returns the rows; pass `saveTo` to write the full TSV to a file.
 
@@ -122,6 +141,8 @@ Environment variables override the settings file field by field. They are useful
 - "List the TestFlight builds of version 2.3 and which are still processing."
 - "Invite jane@example.com to the External Testers group."
 - "Update the What's New text for en-US and de-DE on version 2.4."
+- "Upload the screenshots in ~/Desktop/shots/iphone to version 2.4 for every language, replacing the current ones."
+- "Add ~/Desktop/promo.mov as the iPhone app preview for en-US, with the poster frame at 3 seconds."
 - "Download last month's sales summary for vendor 8xxxxxxx and total the units by country."
 - "Which Xcode Cloud workflows failed this week?" (uses the generic tools)
 
