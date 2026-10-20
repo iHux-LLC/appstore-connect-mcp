@@ -60,6 +60,8 @@ function npxEntry(env: NodeJS.ProcessEnv): ServerEntry {
       if (cli.endsWith("npx-cli.js")) return { command: node, args: [cli, ...args] };
     }
   }
+  // On Windows npx is a .cmd script, which GUI apps can only start through cmd.
+  if (platform() === "win32") return { command: "cmd", args: ["/c", "npx", ...args] };
   return { command: "npx", args };
 }
 
