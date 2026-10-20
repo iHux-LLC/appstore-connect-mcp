@@ -2,8 +2,11 @@ import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server
 import { z } from "zod";
 import {
   checkScreenshotSizes,
-  collectFiles,
+  collectMedia,
+  countInSet,
   listSets,
+  MAX_PER_SET,
+  type MediaPlan,
   resolveVersion,
   uploadToLocalization,
   versionLocalizations,
@@ -111,15 +114,41 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
 
   const writeAnnotations = { readOnlyHint: false, destructiveHint: true, openWorldHint: true };
 
-  const upload = async (kind: MediaKind, args: any, extra: Progress, setType: string, warnings: string[], files: string[]) => {
+  /**
+   * Uploads a plan: the same files to every chosen language, or each language's own files.
+   * Every check (languages, per-set limits) runs before the first upload, so a problem in one
+   * language never leaves the others half done.
+   */
+  const upload = async (kind: MediaKind, args: any, extra: Progress, setType: string, warnings: string[], plan: MediaPlan) => {
     if (args.replace && ctx.config.mode !== "full") {
       throw new Error(
         'replace removes the current files, which needs the "full" access mode (the user can switch it in the settings page). ' +
           "Without replace, new files are added after the existing ones.",
       );
     }
-    const t = await resolveTargets(ctx, args, true);
-    const report = progressReporter(extra, files.length * t.localizations.length);
+    if (plan.perLocale && args.locales?.length) {
+      throw new Error("The folder has a subfolder per language, which already says where each file goes; don't pass locales as well.");
+    }
+    const t = await resolveTargets(ctx, plan.perLocale ? { ...args, locales: [...plan.perLocale.keys()] } : args, true);
+    const filesFor = (locale?: string): string[] => {
+      if (!plan.perLocale) return plan.shared!;
+      const key = [...plan.perLocale.keys()].find((k) => k.toLowerCase() === String(locale).toLowerCase());
+      return key ? plan.perLocale.get(key)! : [];
+    };
+
+    const max = MAX_PER_SET[kind];
+    const tooMany: string[] = [];
+    for (const loc of t.localizations) {
+      const adding = filesFor(loc.locale).length;
+      const existing = args.replace ? 0 : await countInSet(ctx, t.owner, loc.id, kind, setType);
+      if (existing + adding > max) tooMany.push(`${loc.locale ?? loc.id} has ${existing} and you're adding ${adding}`);
+    }
+    if (tooMany.length) {
+      throw new Error(`A ${setType} set holds at most ${max} ${kind}: ${tooMany.join("; ")}. Nothing was uploaded. Use replace, or remove some first.`);
+    }
+
+    const total = t.localizations.reduce((n, loc) => n + filesFor(loc.locale).length, 0);
+    const report = progressReporter(extra, total);
     const results = [];
     // One language at a time keeps well inside Apple's rate limit.
     for (const loc of t.localizations) {
@@ -130,7 +159,7 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
           locale: loc.locale,
           kind,
           setType,
-          files,
+          files: filesFor(loc.locale),
           replace: args.replace,
           waitSeconds: args.waitSeconds ?? (kind === "previews" ? 120 : 60),
           previewFrameTimeCode: args.previewFrameTimeCode,
@@ -141,6 +170,7 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
     return text({
       ...(t.version ? { version: { versionString: t.version.versionString, platform: t.version.platform } } : {}),
       [kind === "screenshots" ? "displayType" : "previewType"]: setType,
+      ...(plan.perLocale ? { mode: "folder per language" } : {}),
       ...(warnings.length ? { warnings } : {}),
       results,
     });
@@ -153,7 +183,8 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
       description:
         "Upload screenshots for one device size to one or more languages of an App Store version (or a custom product page / experiment). " +
         "Finds or creates the screenshot set, uploads in order, waits for Apple's processing, and keeps the files in the order given. " +
-        "Pass files, or a folder (files are taken in name order). The device size is detected from the images when displayType is omitted. " +
+        "Pass files, or a folder (files are taken in name order). A folder with one subfolder per language (en-US/, de-DE/, ...) uploads each language's own screenshots in one call, without locales. " +
+        "The device size is detected from the images when displayType is omitted. " +
         "By default files are added after existing ones; replace swaps them out only after every new file processed (needs full mode). Up to 10 per set.",
       inputSchema: {
         ...versionShape,
@@ -161,16 +192,23 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
         locales: z.array(z.string()).optional().describe("Languages to update, e.g. [\"en-US\"], or [\"*\"] for all"),
         displayType: z.enum(displayTypes).optional().describe("Device size, e.g. APP_IPHONE_67 (6.9\" iPhone) or APP_IPAD_PRO_3GEN_129 (13\" iPad); detected from the images if omitted"),
         files: z.array(z.string()).optional().describe("Absolute paths to .png/.jpg files, in display order"),
-        folder: z.string().optional().describe("A folder of screenshots, used in file-name order"),
+        folder: z.string().optional().describe("A folder of screenshots in file-name order, or a folder of language subfolders (en-US/, de-DE/) for localized screenshots"),
         replace: z.boolean().optional().describe("Replace the set's current screenshots instead of adding to them"),
         waitSeconds: z.number().int().min(0).max(600).optional().describe("How long to wait for Apple's processing per language (default 60)"),
       },
       annotations: writeAnnotations,
     },
     safe(async (args: any, extra: Progress) => {
-      const files = collectFiles("screenshots", args.files, args.folder);
-      const { displayType, warnings } = checkScreenshotSizes(files, args.displayType);
-      return upload("screenshots", args, extra, displayType, warnings, files);
+      const plan = collectMedia("screenshots", args.files, args.folder);
+      // Every language's images must fit the one device size; the first group decides it when not given.
+      let displayType: string | undefined = args.displayType;
+      const warnings: string[] = [];
+      for (const files of plan.perLocale ? plan.perLocale.values() : [plan.shared!]) {
+        const checked = checkScreenshotSizes(files, displayType);
+        displayType = checked.displayType;
+        warnings.push(...checked.warnings);
+      }
+      return upload("screenshots", args, extra, displayType!, warnings, plan);
     }),
   );
 
@@ -180,6 +218,7 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
       title: "Upload App Store preview videos",
       description:
         "Upload app preview videos (.mov/.m4v/.mp4, up to 3 per set) for one device size to one or more languages of an App Store version (or a custom product page / experiment). " +
+        "A folder with one subfolder per language uploads each language's own videos. " +
         "Finds or creates the preview set, uploads, waits for Apple's video processing up to waitSeconds, and keeps the order given. " +
         "Videos can take several minutes to process; anything unfinished is reported as PROCESSING and can be checked later with asc_list_media.",
       inputSchema: {
@@ -188,7 +227,7 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
         locales: z.array(z.string()).optional().describe("Languages to update, e.g. [\"en-US\"], or [\"*\"] for all"),
         previewType: z.enum(previewTypes).describe("Device size, e.g. IPHONE_67 or IPAD_PRO_3GEN_129"),
         files: z.array(z.string()).optional().describe("Absolute paths to the videos, in display order"),
-        folder: z.string().optional().describe("A folder of videos, used in file-name order"),
+        folder: z.string().optional().describe("A folder of videos in file-name order, or a folder of language subfolders (en-US/, de-DE/)"),
         previewFrameTimeCode: z
           .string()
           .regex(/^\d{2}:\d{2}:\d{2}:\d{2}$/)
@@ -200,8 +239,7 @@ export function registerMediaTools(server: McpServer, ctx: ToolContext): Registe
       annotations: writeAnnotations,
     },
     safe(async (args: any, extra: Progress) => {
-      const files = collectFiles("previews", args.files, args.folder);
-      return upload("previews", args, extra, args.previewType, [], files);
+      return upload("previews", args, extra, args.previewType, [], collectMedia("previews", args.files, args.folder));
     }),
   );
 

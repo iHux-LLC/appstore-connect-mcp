@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -248,7 +248,7 @@ describe("asc_upload_screenshots", () => {
     const posts = apple.calls.filter((c) => c === "POST /v1/appScreenshots").length;
     const res: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", locales: ["en-US"], folder: many } });
     expect(res.isError).toBe(true);
-    expect(resultText(res)).toMatch(/at most 10 screenshots; it has 3 and you're adding 8/);
+    expect(resultText(res)).toMatch(/at most 10 screenshots: en-US has 3 and you're adding 8\. Nothing was uploaded/);
     expect(apple.calls.filter((c) => c === "POST /v1/appScreenshots").length).toBe(posts);
   });
 
@@ -302,6 +302,81 @@ describe("asc_upload_screenshots", () => {
     expect(resultText(res)).toMatch(/Pass locales[\s\S]*en-US, de-DE/);
     const missing: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", locales: ["fr-FR"], folder: dir({ "a.png": IPHONE_69() }) } });
     expect(resultText(missing)).toMatch(/no fr-FR localization/);
+  });
+});
+
+function tree(spec: Record<string, Record<string, Buffer>>): string {
+  const root = mkdtempSync(join(tmpdir(), "asc-tree-"));
+  for (const [sub, files] of Object.entries(spec)) {
+    mkdirSync(join(root, sub));
+    for (const [name, data] of Object.entries(files)) writeFileSync(join(root, sub, name), data);
+  }
+  return root;
+}
+
+describe("folder per language", () => {
+  it("uploads each language's own screenshots in one call", async () => {
+    const { apple, client } = await setup("write");
+    const root = tree({ "en-US": { "1.png": IPHONE_69(), "2.png": IPHONE_69() }, "de-DE": { "1-de.png": IPHONE_69() } });
+    const res: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: root } });
+    expect(res.isError, resultText(res)).toBeFalsy();
+    const out = JSON.parse(resultText(res));
+    expect(out.mode).toBe("folder per language");
+    expect(out.displayType).toBe("APP_IPHONE_67");
+    expect(apple.order("loc-en", "screenshots")).toEqual(["1.png", "2.png"]);
+    expect(apple.order("loc-de", "screenshots")).toEqual(["1-de.png"]);
+  });
+
+  it("matches subfolders to languages regardless of letter case", async () => {
+    const { apple, client } = await setup("write");
+    const root = tree({ "en-us": { "1.png": IPHONE_69() } });
+    await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: root } });
+    expect(apple.order("loc-en", "screenshots")).toEqual(["1.png"]);
+  });
+
+  it("stops before uploading when a subfolder names a language the version doesn't have", async () => {
+    const { apple, client } = await setup("write");
+    const root = tree({ "en-US": { "1.png": IPHONE_69() }, "fr-FR": { "1.png": IPHONE_69() } });
+    const res: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: root } });
+    expect(resultText(res)).toMatch(/no fr-FR localization[\s\S]*It has: en-US, de-DE/);
+    expect(apple.calls.some((c) => c.startsWith("POST"))).toBe(false);
+  });
+
+  it("checks every language's limit before the first upload", async () => {
+    const { apple, client } = await setup("write");
+    await client.callTool({
+      name: "asc_upload_screenshots",
+      arguments: { appId: "A", locales: ["de-DE"], folder: dir(Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`x${i}.png`, IPHONE_69()]))) },
+    });
+    const posts = apple.calls.filter((c) => c === "POST /v1/appScreenshots").length;
+    const root = tree({ "en-US": { "1.png": IPHONE_69() }, "de-DE": { "a.png": IPHONE_69(), "b.png": IPHONE_69() } });
+    const res: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: root } });
+    expect(resultText(res)).toMatch(/de-DE has 9 and you're adding 2\. Nothing was uploaded/);
+    expect(apple.calls.filter((c) => c === "POST /v1/appScreenshots").length).toBe(posts);
+    expect(apple.order("loc-en", "screenshots")).toEqual([]);
+  });
+
+  it("refuses ambiguous folders and conflicting inputs", async () => {
+    const { client } = await setup("write");
+    const mixed = tree({ "en-US": { "1.png": IPHONE_69() } });
+    writeFileSync(join(mixed, "loose.png"), IPHONE_69());
+    expect(resultText(await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: mixed } }))).toMatch(/mixes files and subfolders/);
+
+    const notLang = tree({ "final shots": { "1.png": IPHONE_69() } });
+    expect(resultText(await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: notLang } }))).toMatch(/named after languages/);
+
+    const ok = tree({ "en-US": { "1.png": IPHONE_69() } });
+    expect(resultText(await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: ok, locales: ["en-US"] } }))).toMatch(
+      /don't pass locales as well/,
+    );
+  });
+
+  it("requires every language to use the same device size", async () => {
+    const { apple, client } = await setup("write");
+    const root = tree({ "de-DE": { "1.png": png(2064, 2752) }, "en-US": { "1.png": IPHONE_69() } });
+    const res: any = await client.callTool({ name: "asc_upload_screenshots", arguments: { appId: "A", folder: root } });
+    expect(res.isError).toBe(true);
+    expect(apple.calls.some((c) => c.startsWith("POST"))).toBe(false);
   });
 });
 
