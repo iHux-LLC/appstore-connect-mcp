@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "appstore-connect-mcp",
   "display_name": "App Store Connect",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "The entire App Store Connect API for Claude: apps, builds, TestFlight, metadata, screenshots, reviews, pricing, subscriptions, Xcode Cloud and sales reports.",
   "long_description": "All 1,300+ operations of Apple's App Store Connect API, without flooding Claude with tools: a small set of search, describe and call tools covers everything, plus shortcuts for the jobs people do most (apps, builds, customer reviews, TestFlight distribution, metadata, app name and subtitle, screenshots and preview videos, review submission, releases and phased releases, sales and finance reports).\n\n**Setup:** after installing, ask Claude to *open the App Store Connect settings*. A local page opens in your browser where you drop your API key (.p8), test it against Apple, and choose what Claude may do: read-only (default), write, or full. Your key stays on your computer; only short-lived signed tokens reach Apple. The same settings are shared with Claude Code and Cursor.\n\nBuilt by iHux.",
   "author": {

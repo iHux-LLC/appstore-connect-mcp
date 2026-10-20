@@ -59,7 +59,7 @@ On top of those, shortcuts for common jobs return compact, flattened results:
 
 - `asc_release_version` releases an approved version that's waiting for a manual release. It refuses any other state.
 - `asc_phased_release` turns on a 7-day phased release, and can pause, resume, complete or show it. Removing one needs `full` mode. `asc_app_overview` shows the current day.
-- `asc_distribute_build` gives a build to TestFlight groups. It can also set the "What to Test" notes per language and submit the build for beta review, which external groups need. It never submits a build twice.
+- `asc_distribute_build` gives a build to TestFlight groups. It can also set the "What to Test" notes per language and submit the build for beta review, which external groups need. It never submits a build twice. Groups that already receive every build automatically are skipped with a note, and each group's result is reported separately.
 - `asc_update_app_info` changes the app's name, subtitle or privacy URLs for one language. It only edits the app info being prepared for the next version, never the live one.
 
 ### Ratings and reviews
@@ -84,6 +84,8 @@ Before uploading anything, it checks:
 - **That the version can still be edited.**
 
 By default new files are added after the existing ones. `replace: true` swaps them out, but only after every new file has processed successfully, so a failed upload never leaves your product page empty. Replacing needs the `full` access mode, because it removes files.
+
+Apple usually processes screenshots within seconds, but **preview videos often take several minutes**: about 7 minutes for a 16-second clip in testing. The upload tools wait up to `waitSeconds` (2 minutes by default for videos), then report anything unfinished as `PROCESSING` instead of blocking. Ask Claude to check again later, or pass a longer `waitSeconds`.
 
 `asc_list_media` shows what's on a version, per language and device size, including Apple's processing state and any errors. Custom product pages and product page optimization treatments work too: pass `target` and `localizationIds`.
 

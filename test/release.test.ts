@@ -134,6 +134,36 @@ describe("asc_distribute_build", () => {
     expect(created.body.data.attributes).toEqual({ locale: "de-DE", whatsNew: "Teste Export" });
   });
 
+  it("skips groups that get every build, and keeps going when one group refuses", async () => {
+    const apple = mockFetch((req) => {
+      const m = `${req.method} ${req.url.pathname}`;
+      if (m === "GET /v1/betaGroups") {
+        return json({
+          data: [
+            { type: "betaGroups", id: "auto", attributes: { name: "Internal", isInternalGroup: true, hasAccessToAllBuilds: true } },
+            { type: "betaGroups", id: "bad", attributes: { name: "Broken", isInternalGroup: false } },
+            { type: "betaGroups", id: "ok", attributes: { name: "Ext", isInternalGroup: false } },
+          ],
+        });
+      }
+      if (m === "POST /v1/betaGroups/bad/relationships/builds") {
+        return json({ errors: [{ status: "422", code: "ENTITY_UNPROCESSABLE", title: "Not allowed" }] }, 422);
+      }
+      return undefined;
+    });
+    const client = await connect("write", apple.fn);
+    const res: any = await client.callTool({ name: "asc_distribute_build", arguments: { buildId: "b1", betaGroupIds: ["auto", "bad", "ok"] } });
+    expect(res.isError, resultText(res)).toBeFalsy();
+    const out = JSON.parse(resultText(res));
+    expect(out.groups.map((g: any) => [g.group, g.result])).toEqual([
+      ["Internal", "skipped"],
+      ["Broken", "failed"],
+      ["Ext", "added"],
+    ]);
+    expect(out.groups[0].reason).toMatch(/receives every build automatically/);
+    expect(apple.calls.some((c) => c.url.pathname === "/v1/betaGroups/auto/relationships/builds")).toBe(false);
+  });
+
   it("doesn't submit twice for beta review", async () => {
     const apple = fakeApple({ betaSubmitted: true });
     const client = await connect("write", apple.fn);

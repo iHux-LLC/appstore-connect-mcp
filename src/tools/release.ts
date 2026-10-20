@@ -215,13 +215,31 @@ export function registerReleaseWriteTools(server: McpServer, ctx: ToolContext): 
         }
 
         if (betaGroupIds?.length) {
+          // Groups that receive every build automatically refuse manual assignment, so skip them up front.
+          const groups = await runJson(ctx, "betaGroups_getCollection", {
+            query: { "filter[id]": betaGroupIds, "fields[betaGroups]": ["name", "isInternalGroup", "hasAccessToAllBuilds"], limit: 200 },
+          });
+          const info = new Map<string, any>((groups.data ?? []).map((g: any) => [g.id, g.attributes ?? {}]));
+          const outcomes = [];
           for (const groupId of betaGroupIds) {
-            await runOperation(ctx, "betaGroups_builds_createToManyRelationship", {
-              pathParams: { id: groupId },
-              body: { data: [{ type: "builds", id: buildId }] },
-            });
+            const g = info.get(groupId);
+            const name = g?.name ?? groupId;
+            if (g?.hasAccessToAllBuilds) {
+              outcomes.push({ group: name, id: groupId, result: "skipped", reason: "This group already receives every build automatically." });
+              continue;
+            }
+            try {
+              await runOperation(ctx, "betaGroups_builds_createToManyRelationship", {
+                pathParams: { id: groupId },
+                body: { data: [{ type: "builds", id: buildId }] },
+              });
+              outcomes.push({ group: name, id: groupId, result: "added" });
+            } catch (err) {
+              // Keep going so one refusal doesn't stop the other groups.
+              outcomes.push({ group: name, id: groupId, result: "failed", reason: (err as Error).message });
+            }
           }
-          result.addedToGroups = betaGroupIds;
+          result.groups = outcomes;
         }
         return text(result);
       }),
