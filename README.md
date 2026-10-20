@@ -7,6 +7,7 @@ Built and maintained by [iHux](https://github.com/iHux-LLC).
 [![CI](https://github.com/iHux-LLC/appstore-connect-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/iHux-LLC/appstore-connect-mcp/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@ihux/appstore-connect-mcp)](https://www.npmjs.com/package/@ihux/appstore-connect-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/iHux-LLC/appstore-connect-mcp?style=social)](https://github.com/iHux-LLC/appstore-connect-mcp)
 
 ## Install
 
@@ -227,6 +228,10 @@ If a step fails, fix the cause and re-run the workflow; it skips what already su
 
 - The **App Store Server API** (transactions, refunds, server notifications). It is a separate API with its own keys.
 - Downloading **Analytics report segments**. The API returns signed URLs on Apple's CDN, outside the API host the server is allowed to call. Listing the reports and their segments works.
+
+---
+
+If this saves you time in App Store Connect, a ⭐ on [GitHub](https://github.com/iHux-LLC/appstore-connect-mcp) helps other developers find it. Built by [iHux](https://github.com/iHux-LLC).
 
 ## License
 
