@@ -164,9 +164,11 @@ describe("generic tools", () => {
       const reserve = calls.find((c) => c.method === "POST")!;
       expect(reserve.body.data.relationships.appScreenshotSet.data).toEqual({ type: "appScreenshotSets", id: "set1" });
       expect(reserve.body.data.attributes).toEqual({ fileName: "shot.png", fileSize: 10 });
-      const puts = calls.filter((c) => c.url.host === "upload.example.com");
-      expect(puts.map((p) => (p.body as Buffer).length)).toEqual([6, 4]);
-      expect(puts[0].headers).toEqual({ "Content-Type": "image/png" });
+      // Chunks upload in parallel, so match each one by its URL rather than by arrival order.
+      const puts = new Map(calls.filter((c) => c.url.host === "upload.example.com").map((c) => [c.url.pathname, c]));
+      expect((puts.get("/1")!.body as Buffer).length).toBe(6);
+      expect((puts.get("/2")!.body as Buffer).length).toBe(4);
+      expect(puts.get("/1")!.headers).toEqual({ "Content-Type": "image/png" });
       const commit = calls.find((c) => c.method === "PATCH")!;
       expect(commit.body.data.attributes).toEqual({ uploaded: true, sourceFileChecksum: out.md5 });
     } finally {
