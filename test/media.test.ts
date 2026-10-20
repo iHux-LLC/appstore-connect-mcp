@@ -207,7 +207,7 @@ describe("image checks", () => {
   it("takes a folder in natural name order and rejects other file types", () => {
     const d = dir({ "10.png": IPHONE_69(), "2.png": IPHONE_69(), "1.png": IPHONE_69(), ".DS_Store": Buffer.from("x"), "notes.txt": Buffer.from("x") });
     expect(collectFiles("screenshots", [], d).map((f) => f.split("/").pop())).toEqual(["1.png", "2.png", "10.png"]);
-    expect(() => collectFiles("screenshots", [join(d, "notes.txt")])).toThrow(/not a supported image/);
+    expect(() => collectFiles("screenshots", [join(d, "notes.txt")])).toThrow(/must be one of .png, .jpg, .jpeg \(got ".txt"\)/);
     expect(() => collectFiles("previews", [], d)).toThrow(/No .mov\/.m4v\/.mp4 files/);
   });
 });

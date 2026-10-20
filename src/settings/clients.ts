@@ -48,7 +48,9 @@ function findOnPath(cmd: string): string | undefined {
  * path because GUI apps often can't find `npx` (or the `node` its shebang needs) on their PATH.
  */
 function npxEntry(env: NodeJS.ProcessEnv): ServerEntry {
-  const args = ["-y", PACKAGE_NAME];
+  // "@latest" makes npx fetch the published package even when run inside this repo, where
+  // the local package.json has the same name and has no linked command.
+  const args = ["-y", `${PACKAGE_NAME}@latest`];
   if (platform() !== "win32") {
     // Inside the Desktop extension, process.execPath is Claude's bundled runtime, not the user's node.
     const node = env.ASC_RUNTIME === "mcpb" ? findOnPath("node") : process.execPath;

@@ -4,7 +4,7 @@ import { open } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Catalog, Operation } from "./catalog.js";
 import type { AscClient } from "./client.js";
-import { resolveOutputPath } from "./format.js";
+import { safeUploadPath } from "./paths.js";
 import { prepareRequest } from "./validate.js";
 
 export interface UploadInput {
@@ -100,7 +100,7 @@ export async function uploadAsset(
     throw new Error(`Pass relationshipName for ${createOp.id}; one of: ${relNames.join(", ")}.`);
   }
 
-  const path = resolveOutputPath(input.filePath);
+  const path = safeUploadPath(input.filePath);
   const size = statSync(path).size;
   const fileName = input.fileName ?? basename(path);
   const md5 = await md5OfFile(path);

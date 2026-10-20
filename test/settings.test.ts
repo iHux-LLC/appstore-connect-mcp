@@ -148,7 +148,7 @@ describe("client installers", () => {
 
   it("points clients at the published package when running inside the Desktop extension", () => {
     const entry = serverEntry({ ASC_RUNTIME: "mcpb" });
-    expect(entry.args.slice(-2)).toEqual(["-y", PACKAGE_NAME]);
+    expect(entry.args.slice(-2)).toEqual(["-y", `${PACKAGE_NAME}@latest`]);
     expect(PACKAGE_NAME).toBe("@ihux/appstore-connect-mcp");
     expect(serverEntry({}).args[0]).toMatch(/index\.(js|ts)$/);
   });
