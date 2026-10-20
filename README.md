@@ -120,6 +120,13 @@ Changing the mode takes effect within about a second: running servers watch the 
 
 **What "only you can change it" means.** No MCP tool can change settings, and the settings page's token never reaches the model. An agent that can run shell commands, such as Claude Code, could still edit files in your settings folder. Claude Code asks for your permission before running those commands, so approve shell commands with care.
 
+## Safety
+
+- **Writes and deletes** need the matching access mode, and only you can change it (see above).
+- **Files Claude saves** (`saveTo` on reports and API calls) are always new files. Existing files are never overwritten, and saves only allow `.json`, `.tsv`, `.txt`, `.csv`, `.gz` and `.zip`. Nothing is written inside hidden folders (such as `~/.ssh` or `~/.config`) or `~/Library`. A bare file name goes to `~/Downloads/appstore-connect/`.
+- **Files Claude uploads** must be media, documents or builds that Apple accepts (images, videos, PDF, `.ipa` and similar), and can't come from hidden folders or `~/Library`. That keeps keys and keychains from ever being sent.
+- **Text from the public**, such as customer reviews and TestFlight feedback, is labelled as untrusted. Claude is told never to act on instructions inside it.
+
 ## Advanced: environment variables
 
 Environment variables override the settings file field by field. They are useful in CI or for a different key per client. Set them in the client's `env` block:

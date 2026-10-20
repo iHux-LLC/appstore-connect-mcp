@@ -132,7 +132,7 @@ export function registerGenericTools(server: McpServer, ctx: ToolContext): Regis
         body: z.record(z.string(), z.any()).optional().describe("JSON:API request body for POST/PATCH"),
         fetchAll: z.boolean().optional().describe("Follow pagination and merge all pages (GET collections only)"),
         maxItems: z.number().int().min(1).max(10000).optional().describe("Stop paginating once this many items are fetched (default 1000)"),
-        saveTo: z.string().optional().describe("Write the full response to this file path instead of returning it (useful for big lists and reports)"),
+        saveTo: z.string().optional().describe("Save the full response as a new file instead of returning it: a bare name goes to ~/Downloads/appstore-connect; .json/.tsv/.txt/.csv/.gz/.zip only; never overwrites"),
         raw: z.boolean().optional().describe("Return the response without removing links (default false)"),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
@@ -153,7 +153,7 @@ export function registerGenericTools(server: McpServer, ctx: ToolContext): Regis
         "GET a full api.appstoreconnect.apple.com URL, such as a nextUrl from a previous response or a relationship's related link. Only Apple's API host is allowed.",
       inputSchema: {
         url: z.string().url(),
-        saveTo: z.string().optional(),
+        saveTo: z.string().optional().describe("Save the full response as a new file instead of returning it: a bare name goes to ~/Downloads/appstore-connect; .json/.tsv/.txt/.csv/.gz/.zip only; never overwrites"),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },

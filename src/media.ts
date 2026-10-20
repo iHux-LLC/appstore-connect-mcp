@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
-import { resolveOutputPath } from "./format.js";
+import { safeUploadFolder, safeUploadPath } from "./paths.js";
 import { describeDelivery, uploadAsset, type DeliveryState, type UploadResult } from "./upload.js";
 import { runJson, runOperation, type ToolContext } from "./tools/context.js";
 
@@ -116,9 +116,9 @@ export function imageSize(path: string): { width: number; height: number } | und
 
 /** Expands files and/or a folder into an ordered list of media files, checking each exists. */
 export function collectFiles(kind: MediaKind, files: string[] = [], folder?: string): string[] {
-  const out = files.map((f) => resolveOutputPath(f));
+  const out = files.map((f) => safeUploadPath(f, EXTENSIONS[kind]));
   if (folder) {
-    const dir = resolveOutputPath(folder);
+    const dir = safeUploadFolder(folder);
     if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`Folder not found: ${dir}`);
     const names = readdirSync(dir)
       .filter((n) => !n.startsWith(".") && EXTENSIONS[kind].includes(extname(n).toLowerCase()))
@@ -129,9 +129,6 @@ export function collectFiles(kind: MediaKind, files: string[] = [], folder?: str
   if (!out.length) throw new Error("Pass files or a folder.");
   for (const f of out) {
     if (!existsSync(f) || !statSync(f).isFile()) throw new Error(`File not found: ${f}`);
-    if (!EXTENSIONS[kind].includes(extname(f).toLowerCase())) {
-      throw new Error(`${f} is not a supported ${kind === "screenshots" ? "image" : "video"} (${EXTENSIONS[kind].join(", ")}).`);
-    }
   }
   return out;
 }

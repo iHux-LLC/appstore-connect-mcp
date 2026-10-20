@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { decodeBinary, type ApiResult } from "./client.js";
+import { safeOutputPath } from "./paths.js";
 
 // JSON:API responses carry self/related links on every resource and relationship.
 // They are rarely useful to a model and can double the size of a response.
@@ -55,14 +55,16 @@ export function fitToBudget(payload: any, maxChars: number, listKey = "data"): s
   );
 }
 
-export function resolveOutputPath(path: string): string {
-  return resolve(path.replace(/^~(?=$|\/)/, homedir()));
-}
-
+/** Writes a new file for saveTo; never overwrites (see paths.ts for where it may write). */
 export function saveFile(path: string, content: string | Buffer): string {
-  const full = resolveOutputPath(path);
+  const full = safeOutputPath(path);
   mkdirSync(dirname(full), { recursive: true });
-  writeFileSync(full, content);
+  try {
+    writeFileSync(full, content, { flag: "wx" });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") throw new Error(`${full} already exists; choose a new file name.`);
+    throw err;
+  }
   return full;
 }
 
