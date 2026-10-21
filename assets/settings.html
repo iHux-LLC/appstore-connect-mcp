@@ -30,6 +30,14 @@
   --skeleton-a: #EFEFEA; --skeleton-b: #F8F8F5;
   --shadow-card: 0 1px 2px rgba(22,22,26,.04);
   --shadow-float: 0 12px 40px rgba(22,22,26,.16);
+  --segment-bg: #F1F1EC; --segment-on: #FFFFFF; --row-off: #FAFAF8;
+  --area-testflight: #1A4FE0; --area-testflight-tint: #E7EEFF;
+  --area-listing: #5B3CC4; --area-listing-tint: #EEE8FD;
+  --area-release: #9A4F00; --area-release-tint: #FDF0DF;
+  --area-reviews: #0E6B3C; --area-reviews-tint: #E6F4EC;
+  --area-sales: #0B5E7A; --area-sales-tint: #E8F3F7;
+  --area-analytics: #A1215B; --area-analytics-tint: #FCE9F1;
+  --area-api: #3A3A42; --area-api-tint: #ECECE7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -46,6 +54,14 @@
     --skeleton-a: #1B1E26; --skeleton-b: #2A2E3A;
     --shadow-card: 0 20px 60px rgba(0,0,0,.35);
     --shadow-float: 0 16px 50px rgba(0,0,0,.55);
+    --segment-bg: #12141A; --segment-on: #262A35; --row-off: #14161C;
+    --area-testflight: #8CB0FF; --area-testflight-tint: #1D2740;
+    --area-listing: #B9A4FF; --area-listing-tint: #251E3D;
+    --area-release: #F5C27A; --area-release-tint: #2E2213;
+    --area-reviews: #7EE2A8; --area-reviews-tint: #13241B;
+    --area-sales: #7FD3EE; --area-sales-tint: #10262E;
+    --area-analytics: #F59AC4; --area-analytics-tint: #2E1522;
+    --area-api: #C9CBD3; --area-api-tint: #23262F;
   }
 }
 * { box-sizing: border-box; }
@@ -67,7 +83,7 @@ a { color: var(--accent); font-weight: 500; text-underline-offset: 3px; }
 @keyframes breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes pop { 0% { opacity: 0; transform: scale(.6); } 60% { opacity: 1; transform: scale(1.12); } 100% { transform: scale(1); } }
 .rise { animation: rise .5s var(--ease-out) both; }
-.rise:nth-child(2) { animation-delay: .06s; } .rise:nth-child(3) { animation-delay: .12s; } .rise:nth-child(4) { animation-delay: .18s; } .rise:nth-child(5) { animation-delay: .24s; }
+.rise:nth-child(2) { animation-delay: .06s; } .rise:nth-child(3) { animation-delay: .12s; } .rise:nth-child(4) { animation-delay: .18s; } .rise:nth-child(5) { animation-delay: .24s; } .rise:nth-child(6) { animation-delay: .3s; }
 
 /* Header */
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
@@ -165,6 +181,29 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
 .notice.danger { background: var(--danger-card); border: 1px solid var(--danger-border); color: var(--danger-text); }
 .notice.info { background: var(--surface-sunken); border: 1px solid var(--border-soft); color: var(--text-2); }
 
+/* Areas */
+.areas-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
+.counter { display: flex; align-items: baseline; gap: 6px; }
+.counter b { font-size: var(--text-hero); font-weight: 700; letter-spacing: -0.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.areas { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden; }
+.area { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: var(--space-4) 18px; border-bottom: 1px solid var(--border-soft); background: var(--surface); transition: background .25s; animation: rise .4s var(--ease-out) both; }
+.area:last-child { border-bottom: 0; }
+.area.off { background: var(--row-off); }
+.area .tile { width: 40px; height: 40px; border: 0; transition: opacity .25s, transform .35s var(--ease-spring); }
+.area.off .tile { opacity: .45; transform: scale(.94); }
+.area .meta { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.area .meta b { font-size: var(--text-base); font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.area .meta span { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.45; }
+.chip { font-size: var(--text-xs); font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); color: var(--warn-text); background: var(--warn-tint); }
+.segment { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--radius-md); background: var(--segment-bg); }
+.segment button { min-width: 64px; height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font: 600 var(--text-sm) var(--font-sans); cursor: pointer; transition: background .2s, color .2s, box-shadow .2s, transform .35s var(--ease-spring); }
+.segment button:active { transform: scale(.95); }
+.segment button:focus-visible { outline: 3px solid var(--accent-ring); outline-offset: 1px; }
+.segment button[aria-checked="true"] { background: var(--segment-on); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.segment button:disabled { color: var(--text-muted); opacity: .45; cursor: not-allowed; }
+.areas-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: 4px; border-top: 1px solid var(--border-soft); font-size: var(--text-sm); color: var(--text-muted); }
+.notice.warn { background: var(--warn-card); border: 1px solid var(--warn-tint); color: var(--warn-text); }
+
 /* Clients */
 .clients { display: flex; flex-direction: column; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden; }
 .client { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: var(--space-4) 18px; border-bottom: 1px solid var(--border-soft); animation: rise .4s var(--ease-out) both; }
@@ -213,6 +252,13 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
   <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
   <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M4 4l16 8-7 1.5L11 20 4 4z"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></symbol>
+  <symbol id="i-testflight" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 001.8 3h10.4a2 2 0 001.8-3l-5-9V3"/></symbol>
+  <symbol id="i-listing" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5"/></symbol>
+  <symbol id="i-release" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-reviews" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></symbol>
+  <symbol id="i-sales" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></symbol>
+  <symbol id="i-analytics" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
+  <symbol id="i-api" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></symbol>
 </svg>
 
 <!-- First run -->
@@ -307,7 +353,7 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
   <section class="card rise" aria-labelledby="mode-h">
     <div class="card-head">
       <h2 id="mode-h">What Claude may do</h2>
-      <p>Applies within a second in clients that support live tool updates; otherwise on the next restart.</p>
+      <p>The overall limit: the most any area below can do. Changes apply within a second in clients that support live tool updates; otherwise on the next restart.</p>
     </div>
     <div class="modes" role="radiogroup" aria-labelledby="mode-h">
       <button type="button" role="radio" class="mode readonly" data-mode="readonly" aria-checked="false">
@@ -330,6 +376,25 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
     <div class="notice info" id="pin-warning" hidden>
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-alert"/></svg>
       <span id="pin-text"></span>
+    </div>
+  </section>
+
+  <section class="card rise" aria-labelledby="areas-h">
+    <div class="areas-head">
+      <div class="card-head" style="flex-direction: column; align-items: flex-start">
+        <h2 id="areas-h">Fine-tune by area</h2>
+        <p style="margin-top: 0">Turned-off areas disappear from Claude's tools right away.</p>
+      </div>
+      <div class="counter" aria-live="polite"><b id="tool-count">0</b><span class="muted">of <span id="tool-total">0</span> tools available to Claude</span></div>
+    </div>
+    <div class="areas" id="areas"></div>
+    <div class="notice warn" id="api-warning" hidden>
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-alert"/></svg>
+      <span>Full API access can still reach areas you turned off, because it calls Apple's API directly. Set it to Off to make every area setting airtight.</span>
+    </div>
+    <div class="areas-foot">
+      <span>Always on: check connection, list apps, app overview, open settings</span>
+      <button type="button" class="btn" id="areas-reset">Reset to overall limit</button>
     </div>
   </section>
 
@@ -551,6 +616,7 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
     try {
       const next = await api("/api/mode", { mode });
       state = next;
+      renderAreas();
       toast(MODE_TOAST[mode]);
     } catch (err) {
       paintMode(previous);
@@ -561,6 +627,83 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
     document.querySelectorAll(".mode").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.mode === mode)));
     $("full-warning").hidden = mode !== "full";
   }
+
+  // ---------- areas ----------
+  const LEVEL_LABEL = { off: "Off", read: "Read", write: "Write" };
+  // Mirrors effectiveLevel() in src/permissions.ts: the area's choice, capped by the overall mode.
+  function effective(area, mode, access) {
+    const chosen = access[area.id] || "write";
+    if (chosen === "off") return "off";
+    if (chosen === "write" && mode !== "readonly" && area.writeTools > 0) return "write";
+    return "read";
+  }
+  function chosenLevel(area, access) {
+    const chosen = access[area.id] || "write";
+    return chosen === "write" && area.writeTools === 0 ? "read" : chosen;
+  }
+  let shownCount = 0;
+  function animateNumber(el, from, to) {
+    const start = performance.now(), dur = 450;
+    const step = (now) => {
+      const p = Math.min(1, (now - start) / dur);
+      el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function renderAreas() {
+    const { mode, access } = state.settings;
+    let count = state.coreTools;
+    $("areas").innerHTML = state.areas.map((a, i) => {
+      const level = effective(a, mode, access);
+      count += level === "off" ? 0 : level === "read" ? a.readTools : a.readTools + a.writeTools;
+      const chosen = chosenLevel(a, access);
+      const options = a.writeTools > 0 ? ["off", "read", "write"] : ["off", "read"];
+      const buttons = options.map((opt) => {
+        const disabled = opt === "write" && mode === "readonly";
+        return `<button type="button" role="radio" aria-checked="${chosen === opt}" data-area="${a.id}" data-level="${opt}" ${disabled ? 'disabled title="The overall limit is Read-only"' : ""}>${LEVEL_LABEL[opt]}</button>`;
+      }).join("");
+      return `
+        <div class="area ${level === "off" ? "off" : ""}" style="animation-delay:${0.04 * i}s">
+          <span class="tile" style="background:var(--area-${a.id}-tint);color:var(--area-${a.id})">${icon(`i-${a.id}`, 20, "currentColor", 1.9)}</span>
+          <span class="meta"><b>${esc(a.name)}${a.id === "api" ? '<span class="chip">Reaches every area</span>' : ""}</b><span>${esc(a.description.replace(/ Reaches every area\.$/, ""))}</span></span>
+          <span class="segment" role="radiogroup" aria-label="${esc(a.name)}">${buttons}</span>
+        </div>`;
+    }).join("");
+    $("tool-total").textContent = state.totalTools;
+    animateNumber($("tool-count"), shownCount, count);
+    shownCount = count;
+    const anyOff = state.areas.some((a) => a.id !== "api" && effective(a, mode, access) === "off");
+    $("api-warning").hidden = !(anyOff && effective(state.areas.find((a) => a.id === "api"), mode, access) !== "off");
+  }
+  $("areas").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-area]");
+    if (!btn || btn.disabled || btn.getAttribute("aria-checked") === "true") return;
+    const { area, level } = btn.dataset;
+    const name = state.areas.find((a) => a.id === area).name;
+    const previous = state;
+    // Show the change at once; roll back if saving fails.
+    state = { ...state, settings: { ...state.settings, access: { ...state.settings.access, [area]: level } } };
+    renderAreas();
+    try {
+      state = await api("/api/access", { area, level });
+      renderAreas();
+      toast(level === "off" ? `${name} turned off. Claude no longer sees those tools.` : `${name}: ${LEVEL_LABEL[level].toLowerCase()}.`);
+    } catch (err) {
+      state = previous;
+      renderAreas();
+      toast(err.message);
+    }
+  });
+  $("areas-reset").addEventListener("click", async () => {
+    try {
+      state = await api("/api/access", { reset: true });
+      renderAreas();
+      toast("Every area follows the overall limit again.");
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 
   const CLIENT_ICON = {
     "claude-code": `<span class="tile" style="background:var(--ink);border:0">${icon("i-terminal", 20, "var(--on-ink)")}</span>`,
@@ -628,6 +771,7 @@ details.help ol { margin: var(--space-3) 0 2px; padding-left: var(--space-5); di
     $("iss").value = s.issuerId;
     $("save").hidden = true;
     paintMode(s.mode);
+    renderAreas();
     renderClients(state.clients);
     $("settings-path").textContent = state.settingsFile;
     $("version").textContent = state.version;

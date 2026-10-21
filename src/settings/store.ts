@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, w
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import type { Mode } from "../config.js";
+import type { Access } from "../permissions.js";
 
 /** What the settings file holds. Secrets live in the key file it points to, never in client configs. */
 export interface StoredSettings {
@@ -9,6 +10,8 @@ export interface StoredSettings {
   issuerId?: string;
   privateKeyPath?: string;
   mode?: Mode;
+  /** Per-area levels; an area that isn't listed follows the mode. */
+  access?: Access;
 }
 
 export function settingsDir(env: NodeJS.ProcessEnv = process.env): string {

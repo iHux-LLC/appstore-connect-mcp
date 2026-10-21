@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { parseAccess, type Access } from "./permissions.js";
 import { readStored, type StoredSettings } from "./settings/store.js";
 import { NPX_COMMAND } from "./version.js";
 
@@ -12,6 +13,8 @@ export interface Config {
   privateKeyPath?: string;
   privateKeyInline?: string;
   mode: Mode;
+  /** Per-area levels from the settings page; missing areas follow the mode. */
+  access: Access;
   maxResponseChars: number;
   /** Where each value came from, so status output can explain what overrides what. */
   sources: { keyId?: Source; issuerId?: Source; privateKey?: Source; mode?: Source };
@@ -46,6 +49,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, stored: StoredS
     privateKeyInline: envInline,
     privateKeyPath: envInline ? undefined : pick("privateKey", envPath, stored.privateKeyPath),
     mode: pick("mode", envMode, fileMode) ?? "readonly",
+    access: parseAccess(stored.access),
     maxResponseChars: Number.isFinite(maxChars) && maxChars > 1000 ? maxChars : 60000,
     sources,
   };

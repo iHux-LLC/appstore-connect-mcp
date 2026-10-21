@@ -2,6 +2,7 @@ import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server
 import { z } from "zod";
 import { AscApiError } from "../client.js";
 import { renderResult } from "../format.js";
+import { AREAS, effectiveLevel } from "../permissions.js";
 import { settingsFile } from "../settings/store.js";
 import { NPX_COMMAND } from "../version.js";
 import { flat, runJson, runOperation, safe, text, type ToolContext } from "./context.js";
@@ -56,6 +57,7 @@ function registerReadTools(server: McpServer, ctx: ToolContext) {
       return text({
         ok: true,
         mode: config.mode,
+        areas: Object.fromEntries(AREAS.map((a) => [a.id, effectiveLevel(a.id, config.mode, config.access)])),
         keyId: config.keyId ? `${config.keyId.slice(0, 3)}…` : undefined,
         specVersion: catalog.data.specVersion,
         operations: catalog.operations.length,

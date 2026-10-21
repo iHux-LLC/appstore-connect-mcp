@@ -9,6 +9,7 @@ import { TokenProvider } from "../auth.js";
 import { Catalog } from "../catalog.js";
 import { AscApiError, AscClient } from "../client.js";
 import { loadConfig, MODES, type Mode } from "../config.js";
+import { AREAS, areaHasWrites, LEVELS, TOOL_AREAS, type Area, type Level } from "../permissions.js";
 import { NPX_COMMAND, VERSION } from "../version.js";
 import { clientStatuses, installClient, uninstallClient, type ClientId, type Runner } from "./clients.js";
 import { isPrivateKeyPem, keyIdFromFileName, readStored, saveKey, settingsFile, updateStored } from "./store.js";
@@ -101,7 +102,16 @@ export async function startSettingsServer(opts: SettingsServerOptions = {}): Pro
         issuerId: stored.issuerId ?? "",
         keyFile: stored.privateKeyPath ? basename(stored.privateKeyPath) : undefined,
         mode: stored.mode ?? "readonly",
+        access: stored.access ?? {},
       },
+      // Areas with how many tools each level unlocks, so the page can show the live tool count.
+      areas: AREAS.map((a) => ({
+        ...a,
+        readTools: Object.values(TOOL_AREAS).filter((t) => t.area === a.id && t.kind === "read").length,
+        writeTools: Object.values(TOOL_AREAS).filter((t) => t.area === a.id && t.kind === "write").length,
+      })),
+      coreTools: Object.values(TOOL_AREAS).filter((t) => t.area === "core").length,
+      totalTools: Object.keys(TOOL_AREAS).length,
       configured: Boolean(stored.keyId && stored.issuerId && stored.privateKeyPath),
       settingsFile: settingsFile(env),
       clients: await clientStatuses(opts.runner),
@@ -181,6 +191,19 @@ export async function startSettingsServer(opts: SettingsServerOptions = {}): Pro
         case "/api/mode": {
           if (!MODES.includes(body.mode)) return send(res, 400, { error: `Mode must be one of ${MODES.join(", ")}.` });
           updateStored({ mode: body.mode as Mode }, env);
+          return send(res, 200, await state());
+        }
+        case "/api/access": {
+          // Either one area's level, or reset (every area follows the overall limit again).
+          if (body.reset === true) {
+            updateStored({ access: {} }, env);
+            return send(res, 200, await state());
+          }
+          if (!AREAS.some((a) => a.id === body.area)) return send(res, 400, { error: "Unknown area." });
+          if (!LEVELS.includes(body.level)) return send(res, 400, { error: `Level must be one of ${LEVELS.join(", ")}.` });
+          if (body.level === "write" && !areaHasWrites(body.area)) return send(res, 400, { error: "This area only reads; it has no write level." });
+          const access = { ...(readStored(env).access ?? {}), [body.area as Area]: body.level as Level };
+          updateStored({ access }, env);
           return send(res, 200, await state());
         }
         case "/api/clients/install":
