@@ -2,6 +2,7 @@ import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server
 import { z } from "zod";
 import type { Operation } from "../catalog.js";
 import { methodAllowed } from "../config.js";
+import { effectiveLevel } from "../permissions.js";
 import { renderResult } from "../format.js";
 import { uploadAsset, uploadableOperations } from "../upload.js";
 import { prepareRequest } from "../validate.js";
@@ -139,6 +140,12 @@ export function registerGenericTools(server: McpServer, ctx: ToolContext): Regis
     },
     safe(async ({ operationId, pathParams, query, body, fetchAll, maxItems, saveTo, raw }) => {
       const op = catalog.require(operationId);
+      // In read-only mode the client explains the mode; here only the area setting is the reason.
+      if (op.method !== "GET" && config.mode !== "readonly" && effectiveLevel("api", config.mode, config.access) !== "write") {
+        throw new Error(
+          `${op.method} calls through Full API access are turned off: the user set that area to read-only on the settings page (asc_open_settings). Only the user can change this.`,
+        );
+      }
       const prepared = prepareRequest(catalog, op, { pathParams, query, body });
       const result = fetchAll && op.method === "GET" ? await client.requestAll(prepared, maxItems ?? 1000) : await client.request(prepared);
       return text(renderResult(result, { maxChars: config.maxResponseChars, saveTo, compact: !raw }));

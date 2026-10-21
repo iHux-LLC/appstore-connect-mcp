@@ -152,7 +152,31 @@ npx -y @ihux/appstore-connect-mcp status       # what is set, where it comes fro
 | `write` | Also creates and updates (POST and PATCH): metadata, TestFlight, review replies, submissions, uploads |
 | `full` | Also deletes |
 
-Changing the mode takes effect within about a second: running servers watch the settings file and tell the client its tool list has changed. If a client doesn't support that notification, restart it.
+### Fine-tune by area
+
+On top of the overall mode, each area can be set to **Off**, **Read** or **Write**, either on the settings page or in the terminal:
+
+| Area | What it covers |
+|---|---|
+| `testflight` | Builds and beta groups; inviting testers and distributing builds |
+| `listing` | Version text, app name and subtitle, screenshots and preview videos |
+| `release` | Creating versions, attaching builds, submitting for review, releasing, phased release |
+| `reviews` | Reading customer reviews and replying |
+| `sales` | Sales and finance reports (read only) |
+| `analytics` | Analytics reports and turning analytics on |
+| `api` | The generic tools that can call any of Apple's operations |
+
+```bash
+npx -y @ihux/appstore-connect-mcp access                # show every area
+npx -y @ihux/appstore-connect-mcp access reviews off    # hide the review tools
+npx -y @ihux/appstore-connect-mcp access reset          # every area follows the mode again
+```
+
+The mode is always the ceiling: in `readonly` mode no area can write, and deleting still needs `full`. An area that isn't set follows the mode, so nothing changes until you customize. Checking the connection, listing apps, the app overview and opening settings always stay available.
+
+`api` (Full API access) reaches every area, because it can call Apple's API directly. To make an Off area airtight, set `api` to Off or Read as well. With `api` on Read, the generic tool can only read.
+
+Changing the mode or an area takes effect within about a second: running servers watch the settings file and tell the client its tool list has changed. If a client doesn't support that notification, restart it.
 
 **What "only you can change it" means.** No MCP tool can change settings, and the settings page's token never reaches the model. An agent that can run shell commands, such as Claude Code, could still edit files in your settings folder. Claude Code asks for your permission before running those commands, so approve shell commands with care.
 

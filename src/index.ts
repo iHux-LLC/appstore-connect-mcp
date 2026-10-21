@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig, parseMode } from "./config.js";
+import { AREAS, areaHasWrites, effectiveLevel, LEVELS, type Area, type Level } from "./permissions.js";
 import { createServer } from "./server.js";
 import { clientStatuses, installClient, uninstallClient, type ClientId } from "./settings/clients.js";
 import { keyIdFromFileName, permissionWarning, readStored, saveKey, settingsFile, updateStored } from "./settings/store.js";
@@ -16,7 +17,9 @@ Usage: ${NPX_COMMAND} [command]
   (no command)        Run the MCP server (what your MCP client launches)
   settings            Open the settings page in your browser
   status              Show the current settings and client installs
-  mode <mode>         Set the access mode: readonly | write | full
+  mode <mode>         Set the overall limit: readonly | write | full
+  access [area level] Show areas, or set one: access reviews off | read | write
+  access reset        Every area follows the overall limit again
   install [client]    Add the server to claude-code, claude-desktop, cursor (default: all found)
   uninstall <client>  Remove it from a client
   set-key --key-file <AuthKey_X.p8> --issuer-id <id> [--key-id <id>]
@@ -54,6 +57,7 @@ async function status() {
   console.log(`Issuer ID       ${config.issuerId ?? "not set"}${src(config.sources.issuerId)}`);
   console.log(`Private key     ${config.privateKeyInline ? "inline (ASC_PRIVATE_KEY)" : config.privateKeyPath ?? "not set"}${src(config.sources.privateKey)}`);
   console.log(`Access mode     ${config.mode}${src(config.sources.mode)}`);
+  console.log(`Areas           ${AREAS.map((a) => `${a.id}=${effectiveLevel(a.id, config.mode, config.access)}`).join("  ")}`);
   for (const path of [file, readStored().privateKeyPath]) {
     const warning = path ? permissionWarning(path) : undefined;
     if (warning) console.log(`Warning         ${warning}`);
@@ -90,6 +94,28 @@ async function main(args: string[]) {
       updateStored({ mode });
       console.log(`Access mode set to ${mode}. Running servers pick it up within a second.`);
       if (process.env.ASC_MODE) console.log("Note: ASC_MODE is set in this shell; a client config that sets it too will override this.");
+      return;
+    }
+    case "access": {
+      if (!rest.length) {
+        const config = loadConfig();
+        for (const a of AREAS) {
+          const chosen = config.access[a.id];
+          console.log(`  ${a.id.padEnd(11)} ${effectiveLevel(a.id, config.mode, config.access).padEnd(6)} ${chosen ? "" : "(follows the overall limit)"}  ${a.name}`);
+        }
+        return;
+      }
+      if (rest[0] === "reset") {
+        updateStored({ access: {} });
+        console.log("Every area follows the overall limit again.");
+        return;
+      }
+      const [area, level] = rest as [Area, Level];
+      if (!AREAS.some((a) => a.id === area)) throw new Error(`Area must be one of ${AREAS.map((a) => a.id).join(", ")}.`);
+      if (!LEVELS.includes(level)) throw new Error(`Level must be one of ${LEVELS.join(", ")}.`);
+      if (level === "write" && !areaHasWrites(area)) throw new Error(`${area} only reads; use off or read.`);
+      updateStored({ access: { ...(readStored().access ?? {}), [area]: level } });
+      console.log(`${area} set to ${level}. Running servers pick it up within a second.`);
       return;
     }
     case "install": {
